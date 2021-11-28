@@ -60,6 +60,7 @@ LLVM_13 {
     clang_Cursor_getModule;
     clang_Cursor_getNumArguments;
     clang_Cursor_getNumTemplateArguments;
+    clang_Cursor_getObjCRuntimeName;
     clang_Cursor_getObjCDeclQualifiers;
     clang_Cursor_getObjCManglings;
     clang_Cursor_getObjCPropertyAttributes;

@@ -6888,6 +6888,8 @@ CINDEX_LINKAGE int clang_getRawType(CXType T);
 
 CINDEX_LINKAGE const char* clang_getRawTypeName(CXType T);
 
+CINDEX_LINKAGE CXString clang_Cursor_getObjCRuntimeName(CXCursor C);
+
 /**
  * @}
  */
