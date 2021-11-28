@@ -8218,6 +8218,39 @@ enum CX_StorageClass clang_Cursor_getStorageClass(CXCursor C) {
   llvm_unreachable("Unhandled storage class!");
 }
 
+unsigned clang_cursor_getEvaluatedValue(CXCursor C, unsigned long long *T) {
+  const Decl *D = getCursorDecl(C);
+  if (!D)
+    return 0;
+  const VarDecl *VD = dyn_cast<VarDecl>(D);
+  if (!VD)
+    return 0;
+  const APValue *V = VD->evaluateValue();
+  if (!V)
+    return 0;
+  if (V->isFloat()) {
+    const llvm::APFloat F = V->getFloat();
+    const auto &S = &F.getSemantics();
+    if (S != (const llvm::fltSemantics*)&llvm::APFloat::IEEEsingle &&
+        S != (const llvm::fltSemantics*)&llvm::APFloat::IEEEdouble)
+      return 0;
+    *T = 0;
+    *T = *F.bitcastToAPInt().getRawData();
+    return 1;
+  } else if (V->isInt()) {
+    const llvm::APInt I = V->getInt();
+    if (I.getBitWidth() !=8 &&
+        I.getBitWidth() !=16 &&
+        I.getBitWidth() !=32 &&
+        I.getBitWidth() !=64)
+      return 0;
+    *T = 0;
+    *T = *I.getRawData();
+    return 1;
+  }
+  return 0;
+}
+
 CXCursor clang_getCursorSemanticParent(CXCursor cursor) {
   if (clang_isDeclaration(cursor.kind)) {
     if (const Decl *D = getCursorDecl(cursor)) {

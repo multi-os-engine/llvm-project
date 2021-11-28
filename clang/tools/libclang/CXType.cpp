@@ -416,6 +416,26 @@ unsigned clang_isRestrictQualifiedType(CXType CT) {
   return T.isLocalRestrictQualified();
 }
 
+unsigned clang_isSignedIntegerType(CXType CT) {
+  QualType T = GetQualType(CT);
+  return T->isSignedIntegerType() ? 1 : 0;
+}
+
+unsigned clang_isUnsignedIntegerType(CXType CT) {
+  QualType T = GetQualType(CT);
+  return T->isUnsignedIntegerType() ? 1 : 0;
+}
+
+unsigned clang_isSignedIntegerOrEnumerationType(CXType CT) {
+  QualType T = GetQualType(CT);
+  return T->isSignedIntegerOrEnumerationType() ? 1 : 0;
+}
+
+unsigned clang_isUnsignedIntegerOrEnumerationType(CXType CT) {
+  QualType T = GetQualType(CT);
+  return T->isUnsignedIntegerOrEnumerationType() ? 1 : 0;
+}
+
 unsigned clang_getAddressSpace(CXType CT) {
   QualType T = GetQualType(CT);
 
@@ -1138,6 +1158,12 @@ int clang_Type_getNumTemplateArguments(CXType CT) {
   if (T.isNull())
     return -1;
 
+  const ObjCObjectPointerType *PT = T->getAs<ObjCObjectPointerType>();
+  const ObjCObjectType *OT = PT ? PT->getObjectType()
+                                : T->getAs<ObjCObjectType>();
+  if (OT)
+    return OT->isSpecialized() ? OT->getTypeArgs().size() : -1;
+
   auto TA = GetTemplateArguments(T);
   if (!TA)
     return -1;
@@ -1145,10 +1171,106 @@ int clang_Type_getNumTemplateArguments(CXType CT) {
   return GetTemplateArgumentArraySize(TA.getValue());
 }
 
+void clang_forceDisableCrashRecovery() {
+  if (setenv("LIBCLANG_DISABLE_CRASH_RECOVERY", "1", 1) != 0) {
+    fprintf(stderr, "Failed to setenv LIBCLANG_DISABLE_CRASH_RECOVERY=1");
+  }
+}
+
+void clang_forceSetNoThreads() {
+  if (setenv("LIBCLANG_NOTHREADS", "1", 1) != 0) {
+    fprintf(stderr, "Failed to setenv LIBCLANG_NOTHREADS=1");
+  }
+}
+
+int clang_getRawType(CXType CT) {
+  if (CT.kind == CXType_Invalid)
+    return CXCursor_NoDeclFound;
+
+  QualType T = GetQualType(CT);
+  const Type *TP = T.getTypePtrOrNull();
+
+  if (!TP)
+    return CXCursor_NoDeclFound;
+
+  if (TP->getTypeClass() == Type::Attributed) {
+    AttributedType::stripOuterNullability(T);
+    TP = T.getTypePtrOrNull();
+
+    if (!TP)
+      return CXCursor_NoDeclFound;
+    return TP->getTypeClass();
+  }
+  return TP->getTypeClass();
+}
+
+const char* clang_getRawTypeName(CXType CT) {
+  if (CT.kind == CXType_Invalid)
+    return "";
+
+  QualType T = GetQualType(CT);
+  const Type *TP = T.getTypePtrOrNull();
+
+  if (!TP)
+    return "";
+
+  if (TP->getTypeClass() == Type::Attributed) {
+    AttributedType::stripOuterNullability(T);
+    TP = T.getTypePtrOrNull();
+
+    if (!TP)
+      return "";
+    return TP->getTypeClassName();
+  }
+  return TP->getTypeClassName();
+}
+
+unsigned clang_Type_isObjCKindOf(CXType CT) {
+  QualType T = GetQualType(CT);
+  if (T.isNull())
+    return 0;
+  const ObjCObjectPointerType *PT = T->getAs<ObjCObjectPointerType>();
+  const ObjCObjectType *OT = PT ? PT->getObjectType()
+                                : T->getAs<ObjCObjectType>();
+  if (!OT)
+    return 0;
+  return OT->isKindOfType() ? 1 : 0;
+}
+
+int clang_Type_getNumObjCProtocols(CXType CT) {
+  QualType T = GetQualType(CT);
+  if (T.isNull())
+    return -1;
+  const ObjCObjectPointerType *PT = T->getAs<ObjCObjectPointerType>();
+  const ObjCObjectType *OT = PT ? PT->getObjectType()
+                                : T->getAs<ObjCObjectType>();
+  if (!OT)
+    return -1;
+  return OT->getNumProtocols();
+}
+
+CXCursor clang_Type_getObjCProtocolAsCursor(CXType CT, unsigned i) {
+  QualType T = GetQualType(CT);
+  if (T.isNull())
+    return cxcursor::MakeCXCursorInvalid(CXCursor_NoDeclFound);
+  const ObjCObjectPointerType *PT = T->getAs<ObjCObjectPointerType>();
+  const ObjCObjectType *OT = PT ? PT->getObjectType()
+                                : T->getAs<ObjCObjectType>();
+  if (!OT)
+    return cxcursor::MakeCXCursorInvalid(CXCursor_NoDeclFound);
+  return cxcursor::MakeCXCursor(OT->getProtocol(i), GetTU(CT));
+}
+
 CXType clang_Type_getTemplateArgumentAsType(CXType CT, unsigned index) {
   QualType T = GetQualType(CT);
   if (T.isNull())
     return MakeCXType(QualType(), GetTU(CT));
+
+  const ObjCObjectPointerType *PT = T->getAs<ObjCObjectPointerType>();
+  const ObjCObjectType *OT = PT ? PT->getObjectType()
+                                : T->getAs<ObjCObjectType>();
+  if (OT)
+    return MakeCXType(OT->getTypeArgs()[index], GetTU(CT));
 
   auto TA = GetTemplateArguments(T);
   if (!TA)
@@ -1323,6 +1445,35 @@ enum CXTypeNullabilityKind clang_Type_getNullability(CXType CT) {
     }
   }
   return CXTypeNullability_Invalid;
+}
+
+CXType clang_getTypeByStrippingOuterNullability(CXType X) {
+  QualType T = GetQualType(X);
+  if (T.isNull())
+    return MakeCXType(QualType(), GetTU(X));
+
+  const Type *TP = T.getTypePtr();
+  if (TP->getTypeClass() == Type::Attributed) {
+    AttributedType::stripOuterNullability(T);
+    if (T.isNull())
+      return MakeCXType(QualType(), GetTU(X));
+    return MakeCXType(T, GetTU(X));
+  }
+
+  return X;
+}
+
+CXType clang_getTypeByStrippingOuterObjCKindOf(CXType X) {
+  QualType T = GetQualType(X);
+  if (T.isNull())
+    return MakeCXType(QualType(), GetTU(X));
+
+  const Type *TP = T.getTypePtr();
+  if (const AttributedType* AT = TP->getAs<AttributedType>())
+    if (AT->getAttrKind() == AttributedType::Kind::ObjCKindOf)
+      return MakeCXType(AT->getModifiedType(), GetTU(X));
+
+  return MakeCXType(T, GetTU(X));
 }
 
 CXType clang_Type_getValueType(CXType CT) {
