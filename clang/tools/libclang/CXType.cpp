@@ -544,7 +544,9 @@ try_again:
     D = cast<InjectedClassNameType>(TP)->getDecl();
     break;
 
-  // FIXME: Template type parameters!      
+  case Type::ObjCTypeParam:
+    D = cast<ObjCTypeParamType>(TP)->getDecl();
+    break;
 
   case Type::Elaborated:
     TP = cast<ElaboratedType>(TP)->getNamedType().getTypePtrOrNull();

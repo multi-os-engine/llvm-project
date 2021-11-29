@@ -930,3 +930,37 @@ TEST_F(LibclangRewriteTest, RewriteRemove) {
   ASSERT_EQ(clang_CXRewriter_overwriteChangedFiles(Rew), 0);
   EXPECT_EQ(getFileContent(Filename), "int () { return 0; }");
 }
+
+TEST_F(LibclangParseTest, clang_Cursor_getObjCGenericParamType) {
+  std::string Main = "main.m";
+  WriteFile(Main, "@interface NSEnumerator<ObjectType> : NSObject <NSFastEnumeration>\n"
+                  "\n"
+                  "- (nullable ObjectType)nextObject;\n"
+                  "\n"
+                  "@end");
+
+  ClangTU = clang_parseTranslationUnit(Index, Main.c_str(), nullptr, 0, nullptr,
+                                       0, TUFlags);
+
+  CXCursor C = clang_getTranslationUnitCursor(ClangTU);
+  clang_visitChildren(
+      C,
+      [](CXCursor cursor, CXCursor parent,
+        CXClientData client_data) -> CXChildVisitResult {
+        if (clang_getCursorKind(cursor) == CXCursor_ObjCInterfaceDecl) {
+          int numOLG = clang_Cursor_getNumObjCGenericParams(cursor);
+          EXPECT_EQ(numOLG, 1);
+
+          for (int i = 0; i < numOLG; i++) {
+            CXType type = clang_Cursor_getObjCGenericParamType(cursor, i);
+            CXCursor td = clang_getTypeDeclaration(type);
+            CXString usr = clang_getCursorUSR(td);
+            const char *usrc = clang_getCString(usr);
+            EXPECT_GT(strlen(usrc), 0);
+          }
+        }
+        return CXChildVisit_Continue;
+      },
+      nullptr);
+
+}
