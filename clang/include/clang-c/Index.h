@@ -6880,9 +6880,9 @@ CINDEX_LINKAGE unsigned clang_Type_visitFields(CXType T, CXFieldVisitor visitor,
  * @}
  */
 
-CINDEX_LINKAGE void clang_forceDisableCrashRecovery();
+CINDEX_LINKAGE void clang_forceDisableCrashRecovery(void);
  
-CINDEX_LINKAGE void clang_forceSetNoThreads();
+CINDEX_LINKAGE void clang_forceSetNoThreads(void);
 
 CINDEX_LINKAGE int clang_getRawType(CXType T);
 
