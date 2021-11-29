@@ -8431,8 +8431,9 @@ CXSourceRange clang_Cursor_getCommentRange(CXCursor C) {
 
   const Decl *D = getCursorDecl(C);
   ASTContext &Context = getCursorContext(C);
-  const RawComment *RC = Context.getRawCommentForAnyRedecl(D);
-  if (!RC)
+  const Decl *DResult = nullptr;
+  const RawComment *RC = Context.getRawCommentForAnyRedecl(D, &DResult);
+  if (!RC || D != DResult)
     return clang_getNullRange();
 
   return cxloc::translateSourceRange(Context, RC->getSourceRange());
@@ -8444,9 +8445,10 @@ CXString clang_Cursor_getRawCommentText(CXCursor C) {
 
   const Decl *D = getCursorDecl(C);
   ASTContext &Context = getCursorContext(C);
-  const RawComment *RC = Context.getRawCommentForAnyRedecl(D);
-  StringRef RawText =
-      RC ? RC->getRawText(Context.getSourceManager()) : StringRef();
+  const Decl *DResult = nullptr;
+  const RawComment *RC = Context.getRawCommentForAnyRedecl(D, &DResult);
+  StringRef RawText = (RC && D == DResult) ? RC->getRawText(Context.getSourceManager()) :
+                                           StringRef();
 
   // Don't duplicate the string because RawText points directly into source
   // code.
@@ -8459,9 +8461,10 @@ CXString clang_Cursor_getBriefCommentText(CXCursor C) {
 
   const Decl *D = getCursorDecl(C);
   const ASTContext &Context = getCursorContext(C);
-  const RawComment *RC = Context.getRawCommentForAnyRedecl(D);
+  const Decl *DResult = nullptr;
+  const RawComment *RC = Context.getRawCommentForAnyRedecl(D, &DResult);
 
-  if (RC) {
+  if (RC && D == DResult) {
     StringRef BriefText = RC->getBriefText(Context);
 
     // Don't duplicate the string because RawComment ensures that this memory
