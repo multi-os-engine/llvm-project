@@ -8231,8 +8231,8 @@ unsigned clang_cursor_getEvaluatedValue(CXCursor C, unsigned long long *T) {
   if (V->isFloat()) {
     const llvm::APFloat F = V->getFloat();
     const auto &S = &F.getSemantics();
-    if (S != (const llvm::fltSemantics*)&llvm::APFloat::IEEEsingle &&
-        S != (const llvm::fltSemantics*)&llvm::APFloat::IEEEdouble)
+    if (S != (const llvm::fltSemantics*)&llvm::APFloat::IEEEsingle() &&
+        S != (const llvm::fltSemantics*)&llvm::APFloat::IEEEdouble())
       return 0;
     *T = 0;
     *T = *F.bitcastToAPInt().getRawData();
