@@ -392,10 +392,12 @@ SymbolInfo index::getSymbolInfo(const Decl *D) {
   if (Info.Properties & (SymbolPropertySet)SymbolProperty::Generic)
     Info.Lang = SymbolLanguage::CXX;
 
-  if (auto *attr = D->getExternalSourceSymbolAttr()) {
-    if (attr->getLanguage() == "Swift")
-      Info.Lang = SymbolLanguage::Swift;
-  }
+  // MOE: treat external symbol from Swift code as the target language,
+  // e.g., ObjC.
+//  if (auto *attr = D->getExternalSourceSymbolAttr()) {
+//    if (attr->getLanguage() == "Swift")
+//      Info.Lang = SymbolLanguage::Swift;
+//  }
 
   return Info;
 }

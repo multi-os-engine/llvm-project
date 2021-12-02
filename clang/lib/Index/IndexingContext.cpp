@@ -26,7 +26,8 @@ static bool isGeneratedDecl(const Decl *D) {
 }
 
 bool IndexingContext::shouldIndex(const Decl *D) {
-  return !isGeneratedDecl(D);
+  // MOE: Always index external symbol to index ObjC header generated from Swift code.
+  return true; // !isGeneratedDecl(D);
 }
 
 const LangOptions &IndexingContext::getLangOpts() const {
